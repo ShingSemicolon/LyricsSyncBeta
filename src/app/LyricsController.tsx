@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import parseSong, { Lyric } from "./parseSong";
 
 interface LyricsControllerProps {
   query: string;
 }
 
-const LyricsController: React.FC<LyricsControllerProps> = ({ query }) => {
-  const [lyrics, setLyrics] = useState<Lyric[]>([]);
-  // const [audio, setAudio] = useState("");
+ const LyricsController: React.FC<LyricsControllerProps> = ({ query }) => {
+  const [lyrics, setLyrics] = useState<Lyric>({ name: "", author: "", lyrics: [] });
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
   const [currentLyricIndex, setCurrentLyricIndex] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -18,7 +19,7 @@ const LyricsController: React.FC<LyricsControllerProps> = ({ query }) => {
 
         if (response.status === 200) {
           const body = await response.json();
-          const parsedLyrics = Array.isArray(body) ? parseSong(body[0].name, body[0].syncedLyrics) : parseSong(body.name, body.syncedLyrics);
+          const parsedLyrics = Array.isArray(body) ? parseSong(body[0].name, body[0].artistName, body[0].syncedLyrics) : parseSong(body.name, body.artistName, body.syncedLyrics);
           setLyrics(parsedLyrics);
         } else {
           throw new Error('Error fetching data');
@@ -34,42 +35,109 @@ const LyricsController: React.FC<LyricsControllerProps> = ({ query }) => {
   }, [query]);
 
   useEffect(() => {
-    if (lyrics.length === 0) return;
+    if (lyrics.lyrics.length === 0) return;
 
     let interval: NodeJS.Timeout;
     const startTime = Date.now();
 
     const updateLyricIndex = () => {
       const elapsedTime = Date.now() - startTime;
-      const nextIndex = lyrics.findIndex(lyric => lyric.timestamp > elapsedTime);
+      const nextIndex = lyrics.lyrics.findIndex(lyric => lyric.timestamp > elapsedTime);
+      console.log(lyrics.lyrics[nextIndex])
 
-      if (nextIndex === -1) {
-        setCurrentLyricIndex(lyrics.length - 1); // Last lyric if no more timestamps
-      } else {
-        setCurrentLyricIndex(nextIndex - 1);
+      if(!lyrics.lyrics[nextIndex+1]) {
+        return;
       }
+      if (lyrics.lyrics[nextIndex+1].timestamp < elapsedTime) {
+        clearInterval(interval);
+        console.log("done");
+        return;
+      }
+   
+      if (nextIndex === -1) {
+      console.log("["+(lyrics.lyrics.length-1)+"] "+lyrics.lyrics[lyrics.lyrics.length - 1].lyric,elapsedTime - lyrics.lyrics[lyrics.lyrics.length - 1].timestamp)
+        setTimeout(() => setCurrentLyricIndex(lyrics.lyrics.length - 1), lyrics.lyrics[lyrics.lyrics.length - 1].timestamp - elapsedTime);
+      } else {
+      console.log("["+(nextIndex)+"] "+ lyrics.lyrics[nextIndex].lyric,elapsedTime - lyrics.lyrics[nextIndex].timestamp)
+        setTimeout(() => setCurrentLyricIndex(nextIndex), lyrics.lyrics[nextIndex].timestamp - elapsedTime);
+      }
+      const button = document.querySelector('#play');
+  
+      button?.addEventListener('click', () => {
+        if (interval) {
+          clearInterval(interval);
+        } else {
+          interval = setInterval(updateLyricIndex, 100);
+        }
+      })
+
     };
-
-    interval = setInterval(updateLyricIndex, 100);
-
+    updateLyricIndex();
+    // interval = setInterval(updateLyricIndex, 100);
+ 
+    
     return () => clearInterval(interval);
   }, [lyrics]);
 
 
-  useState(() => {
-    const fetchAudio = async() => {
-      const response = await fetch(`api/get-audio?query=${query}`);
-      const body = await response.json();
-    }
-  
-  })
+  useEffect(() => {
+    const fetchAudio = async () => {
+      try {
+        const responseLyrics = await fetch(`api/search-lyrics?query=${query}`);
+        const bodyLyric = await responseLyrics.json();
+        const lyricsName = Array.isArray(bodyLyric) ? bodyLyric[0].name : bodyLyric.name;
+        
+        const responseAudio = await fetch(`api/get-audio?query=${lyricsName + ' ' + lyrics.author}&t=${lyrics.lyrics[currentLyricIndex]?.timestamp}`);
+        const bodyAudio = await responseAudio.json();
+
+        if (!audioRef.current) {
+          audioRef.current = new Audio(bodyAudio.url);
+        } else {
+          audioRef.current.src = bodyAudio.url;
+        }
+      } catch (error) {
+        console.error('Error fetching audio or lyrics:', error);
+      }
+    };
+
+    fetchAudio();
+  }, [query, lyrics, currentLyricIndex]);
+
+  useEffect(() => {
+    const handlePlayPause = async () => {
+      if (audioRef.current) {
+        try {
+          if (audioRef.current.paused) {
+            await audioRef.current.play();
+            console.log('Reproduciendo audio');
+          } else {
+            audioRef.current.pause();
+            console.log('Audio pausado');
+          }
+        } catch (error) {
+          console.error('Error al reproducir/pausar el audio:', error);
+        }
+      }
+    };
+
+    const button = buttonRef.current;
+    button?.addEventListener('click', handlePlayPause);
+
+    // Cleanup function to remove the event listener
+    return () => {
+      button?.removeEventListener('click', handlePlayPause);
+    };
+  }, []);
+
+
 
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  return <div>{lyrics[currentLyricIndex]?.lyric}</div>;
+  return <div>{lyrics.lyrics[currentLyricIndex]?.lyric}</div>;
+
 };
 
 export default LyricsController;

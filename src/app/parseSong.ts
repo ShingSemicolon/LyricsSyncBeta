@@ -1,10 +1,12 @@
 export interface Lyric {
     name: string;
-    timestamp: number;
-    lyric: string;
-}
-
-export default function parseSong(name : string, lyric: string): Lyric[] {
+    author: string;
+    lyrics: {
+      timestamp: number;
+      lyric: string;
+    }[];
+  }
+export default function parseSong(name : string, author: string, lyric: string): Lyric {
     const lines = lyric.split('\n');
 
     const result = [];
@@ -20,7 +22,7 @@ export default function parseSong(name : string, lyric: string): Lyric[] {
         let parsedTime = minutes * 60 * 1000 + seconds * 1000 + milliseconds;
 
 
-        result.push({ name, timestamp: parsedTime, lyric:text });
+        result.push({ timestamp: parsedTime, lyric:text });
     }
-    return result;
+    return {name, author, lyrics: result};
 }

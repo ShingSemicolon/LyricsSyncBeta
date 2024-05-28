@@ -38,6 +38,7 @@ const PlaySong = () => {
        <div className="flex min-h-[80vh] flex-col gap-3 justify-center items-center ">
         <LyricsController query={id}/>
         </div> 
+        <input type="button" value="Play" id="play" />
         <div className="w-full h-full fixed top-0 right-0 overflow-hidden background -z-50"/>
       {/* </section> */}
       </main>
