@@ -5,15 +5,15 @@ import ytdl from "ytdl-core";
 type PartialURL = ytsr.Item & Partial<{ url: string }>;
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
-  const { query, t } = req.query;
+  const { q, t } = req.query;
 
   // Validate the 'query' and 't' parameters
-  if (!query || !t || typeof query !== 'string' || typeof t !== 'string' || query.trim() === '' || isNaN(parseInt(t))) {
+  if (!q || !t || typeof q !== 'string' || typeof t !== 'string' || q.trim() === '' || isNaN(parseInt(t))) {
     return res.status(400).json({ error: 'Invalid query parameter' });
   }
 
   try {
-    const video = await ytsr(query, { limit: 3 });
+    const video = await ytsr(q, { limit: 3 });
     const songs: PartialURL[] = video.items as PartialURL[];
 
     const songPromises = songs.map(async (song) => {

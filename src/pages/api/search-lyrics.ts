@@ -1,20 +1,19 @@
 import axios from 'axios';
 import { NextApiRequest, NextApiResponse } from 'next';
-import { Adamina } from 'next/font/google';
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
-  const { query } = req.query;
+  const { q } = req.query;
   
   // Validar el parámetro 'query'
-  if (!query || typeof query !== 'string') {
+  if (!q || typeof q !== 'string') {
     return res.status(400).json({ error: 'Invalid query parameter' });
   }
  
 
-  let url = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`;
+  let url = `https://lrclib.net/api/search?q=${encodeURIComponent(q)}`;
 
-  if(parseInt(query)) {
-    url = `https://lrclib.net/api/get/${query}`
+  if(parseInt(q)) {
+    url = `https://lrclib.net/api/get/${q}`
   }
 
   try {
